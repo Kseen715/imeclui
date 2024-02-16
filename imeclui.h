@@ -115,6 +115,9 @@ extern "C"
 #define IME_STYLE_HIDDEN 0b01000000
 #define IME_STYLE_STRIKETHROUGH 0b10000000
 
+#define __IME_COLOR_STR_BUFFER_SIZE 16
+#define __IME_STYLE_STR_BUFFER_SIZE 128
+
 #define ime_clear_screen() write(1, "\033[H\033[2J\033[3J", 11)
 #define ime_move_cursor(X, Y) printf("\033[%d;%dH", (Y), (X))
 #define ime_enter_alt_screen() puts("\033[?1049h\033[H")
@@ -127,18 +130,12 @@ extern "C"
         char symbol;
         char *fg_color;
         char *bg_color;
-        bool is_bold;
-        bool is_dim;
-        bool is_italic;
-        bool is_underlined;
-        bool is_blinking;
-        bool is_inverted;
-        bool is_hidden;
+        short style;
     } Cell;
 
     typedef struct CellBuffer
     {
-        Cell *cells;
+        Cell **cells;
         int cols;
         int rows;
         int size;
@@ -152,19 +149,25 @@ extern "C"
     ADDAPI void ADDCALL ime_echo_on();
 
     ADDAPI void ADDCALL ime_fill_screen(char *color);
-    ADDAPI void ADDCALL ime_fill_rect(char *buf, char *t_color, char *bg_color);
+    ADDAPI void ADDCALL ime_fill_rect(Cell *cell, size_t lu_x, size_t lu_y,
+                                      size_t rb_x, size_t rb_y);
 
-    ADDAPI Cell ADDCALL *ime_alloc_cell(char symbol, char *fg_color, char *bg_color);
+    ADDAPI Cell ADDCALL *ime_alloc_cell(char symbol, char *fg_color,
+                                        char *bg_color, short style);
     ADDAPI void ADDCALL ime_free_cell(Cell *cell);
     ADDAPI void ADDCALL __ime_log_cell(Cell *cell);
 
     ADDAPI void ADDCALL ime_alloc_cells_linear(CellBuffer *buffer, int size);
-    ADDAPI void ADDCALL ime_alloc_cells(CellBuffer *buffer, int cols, int rows);
+    ADDAPI CellBuffer ADDCALL *ime_alloc_cells(int cols, int rows);
     ADDAPI void ADDCALL ime_free_cells(CellBuffer *buffer);
+    ADDAPI void ADDCALL __ime_log_cells(CellBuffer *buffer);
 
-    ADDAPI char ADDCALL *ime_style_builder(char *fg_color, char *bg_color, short cfg);
+    ADDAPI char ADDCALL *ime_style_builder(char *fg_color, char *bg_color,
+                                           short cfg);
 
     ADDAPI char ADDCALL *__ime_get_escape_string(char *str);
+
+    ADDAPI void ADDCALL ime_draw_cell(Cell *cell, size_t x, size_t y);
 
 #ifdef IMECLUI_IMPLEMENTATION
 
@@ -222,12 +225,13 @@ extern "C"
 #endif // _WIN32
     }
 
-    ADDAPI Cell ADDCALL *ime_alloc_cell(char symbol, char *fg_color, char *bg_color)
+    ADDAPI Cell ADDCALL *ime_alloc_cell(char symbol, char *fg_color, char *bg_color, short style)
     {
-        Cell *cell = malloc(sizeof(Cell));
-        cell->fg_color = malloc(16);
-        cell->bg_color = malloc(16);
+        Cell *cell = (Cell *)malloc(sizeof(Cell));
+        cell->fg_color = (char *)malloc(__IME_COLOR_STR_BUFFER_SIZE);
+        cell->bg_color = (char *)malloc(__IME_COLOR_STR_BUFFER_SIZE);
         cell->symbol = symbol;
+        cell->style = style;
         sprintf(cell->fg_color, "%s", fg_color);
         sprintf(cell->bg_color, "%s", bg_color);
         return cell;
@@ -243,8 +247,8 @@ extern "C"
     ADDAPI char ADDCALL *__ime_get_escape_string(char *str)
     {
         // if any non-ascii character is found, replace it with hex escape sequence
-        char *buf = malloc(64);
-        for (int i = 0; i < 64; i++)
+        char *buf = malloc(__IME_STYLE_STR_BUFFER_SIZE);
+        for (int i = 0; i < __IME_STYLE_STR_BUFFER_SIZE; i++)
         {
             buf[i] = '\0';
         }
@@ -269,17 +273,26 @@ extern "C"
     {
         char *fg_color = __ime_get_escape_string(cell->fg_color);
         char *bg_color = __ime_get_escape_string(cell->bg_color);
-        printf("Cell {char: %c, fg_color: %s, bg_color: %s}\n", cell->symbol, fg_color, bg_color);
+        printf("{char: %c, fg_color: %s, bg_color: %s, style: 0x%X}\n", cell->symbol, fg_color, bg_color, cell->style);
         free(fg_color);
         free(bg_color);
+    }
+
+    ADDAPI void ADDCALL __ime_log_cells(CellBuffer *buffer)
+    {
+        for (int i = 0; i < buffer->size; i++)
+        {
+            printf("%04d: ", i);
+            __ime_log_cell(buffer->cells[i]);
+        }
     }
 
     ADDAPI char ADDCALL *ime_style_builder(char *fg_color, char *bg_color, short cfg)
     {
         // TODO: use a buffer instead of malloc
         // TODO: or count precizely max length of the string
-        char *style = malloc(128);
-        for (int i = 0; i < 128; i++)
+        char *style = malloc(__IME_STYLE_STR_BUFFER_SIZE);
+        for (int i = 0; i < __IME_STYLE_STR_BUFFER_SIZE; i++)
             style[i] = '\0';
         strcat(style, IME_ESC ";");
         strcat(style, fg_color);
@@ -334,25 +347,28 @@ extern "C"
     //     }
     // }
 
-    // ADDAPI void ADDCALL ime_alloc_cells(CellBuffer *buffer, int cols, int rows)
-    // {
-    //     buffer->cells = malloc(cols * rows * sizeof(Cell));
-    //     buffer->cols = cols;
-    //     buffer->rows = rows;
-    //     buffer->size = cols * rows;
-    //     for (int i = 0; i < buffer->size; i++)
-    //     {
-    //         ime_alloc_cell(&buffer->cells[i]);
-    //     }
-    // }
+    ADDAPI CellBuffer ADDCALL *ime_alloc_cells(int cols, int rows)
+    {
+        CellBuffer *buffer = malloc(sizeof(CellBuffer));
+        buffer->cells = (Cell **)malloc(cols * rows * sizeof(Cell));
+        buffer->cols = cols;
+        buffer->rows = rows;
+        buffer->size = cols * rows;
+        for (int i = 0; i < buffer->size; i++)
+        {
+            buffer->cells[i] = ime_alloc_cell(' ', IME_NORMAL, IME_BG_NORMAL, 0);
+        }
+        return buffer;
+    }
 
     ADDAPI void ADDCALL ime_free_cells(CellBuffer *buffer)
     {
         for (int i = 0; i < buffer->size; i++)
         {
-            ime_free_cell(&buffer->cells[i]);
+            ime_free_cell(buffer->cells[i]);
         }
         free(buffer->cells);
+        free(buffer);
     }
 
     ADDAPI void ADDCALL ime_fill_screen(char *color)
@@ -371,6 +387,33 @@ extern "C"
         printf(color);
         printf(buffer);
         free(buffer);
+    }
+
+    ADDAPI void ADDCALL ime_draw_cell(Cell *cell, size_t x, size_t y)
+    {
+        ime_move_cursor(x, y);
+        char *style = ime_style_builder(cell->fg_color, cell->bg_color, cell->style);
+        // sprintf(style, "%c", cell->symbol);
+        printf(style);
+        printf("%c", cell->symbol);
+        free(style);
+    }
+
+    ADDAPI void ADDCALL ime_fill_rect(Cell *cell, size_t lu_x, size_t lu_y,
+                                      size_t rb_x, size_t rb_y)
+    {
+        ime_move_cursor(lu_x, lu_y);
+        size_t width = rb_x - lu_x;
+        size_t height = rb_y - lu_y;
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                size_t curr_x = lu_x + x;
+                size_t curr_y = lu_y + y;
+                ime_draw_cell(cell, curr_x, curr_y);
+            }
+        }
     }
 
 #endif // IMECLUI_IMPLEMENTATION
