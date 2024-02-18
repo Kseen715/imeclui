@@ -169,6 +169,24 @@ extern "C"
 
     ADDAPI void ADDCALL ime_draw_cell(Cell *cell, size_t x, size_t y);
 
+    ADDAPI bool ADDCALL ime_is_stdin_tty();
+    ADDAPI bool ADDCALL ime_is_stdout_tty();
+
+    ADDAPI void ADDCALL ime_copy_cell(Cell *dst, Cell *src);
+
+    ADDAPI void ADDCALL ime_place_buffer(CellBuffer *buf);
+
+    ADDAPI void ADDCALL ime_b_fill_rect(CellBuffer *buf, Cell *cell,
+                                        size_t lu_x, size_t lu_y,
+                                        size_t rb_x, size_t rb_y);
+    ADDAPI void ADDCALL ime_draw_frame(CellBuffer *buf,
+                                       size_t lu_x, size_t lu_y,
+                                       size_t rb_x, size_t rb_y);
+    ADDAPI void ADDCALL ime_draw_frame_double(CellBuffer *buf,
+                                              size_t lu_x, size_t lu_y,
+                                              size_t rb_x, size_t rb_y);
+    ADDAPI void ADDCALL ime_bell();
+
 #ifdef IMECLUI_IMPLEMENTATION
 
     /* IMPLEMENTATION START --> */
@@ -335,6 +353,20 @@ extern "C"
         return style;
     }
 
+    ADDAPI bool ADDCALL ime_is_stdin_tty()
+    {
+        return (isatty(fileno(stdin))
+                    ? "stdin is tty"
+                    : "stdin is not tty");
+    }
+
+    ADDAPI bool ADDCALL ime_is_stdout_tty()
+    {
+        return (isatty(fileno(stdout))
+                    ? "stdout is tty"
+                    : "stdout is not tty");
+    }
+
     // ADDAPI void ADDCALL ime_alloc_cells_linear(CellBuffer *buffer, int size)
     // {
     //     buffer->cells = malloc(size * sizeof(Cell));
@@ -393,7 +425,6 @@ extern "C"
     {
         ime_move_cursor(x, y);
         char *style = ime_style_builder(cell->fg_color, cell->bg_color, cell->style);
-        // sprintf(style, "%c", cell->symbol);
         printf(style);
         printf("%c", cell->symbol);
         free(style);
@@ -414,6 +445,167 @@ extern "C"
                 ime_draw_cell(cell, curr_x, curr_y);
             }
         }
+    }
+
+    ADDAPI void ADDCALL __ime_slow_place_buffer(CellBuffer *buf)
+    {
+        for (int i = 0; i < buf->rows; i++)
+        {
+            for (int j = 0; j < buf->cols; j++)
+            {
+                ime_draw_cell(buf->cells[i], j, i);
+            }
+        }
+    }
+
+    ADDAPI void ADDCALL ime_place_buffer(CellBuffer *buf)
+    {
+        char *screen = calloc(buf->size * 64, 1);
+        size_t printed = 0;
+        size_t t;
+        for (int i = 0; i < buf->rows; i++)
+        {
+            for (int j = 0; j < buf->cols; j++)
+            {
+                t = sprintf(screen, ime_style_builder(
+                                        buf->cells[j * buf->rows + i]->fg_color,
+                                        buf->cells[j * buf->rows + i]->bg_color,
+                                        buf->cells[j * buf->rows + i]->style));
+                printed += t;
+                screen += t;
+                t = sprintf(screen, "%c",
+                            buf->cells[j * buf->rows + i]->symbol);
+                printed += t;
+                screen += t;
+            }
+        }
+        ime_clear_screen();
+        screen -= printed;
+        printf(screen);
+        free(screen);
+    }
+
+    ADDAPI void ADDCALL ime_copy_cell(Cell *dst, Cell *src)
+    {
+        dst->symbol = src->symbol;
+        dst->style = src->style;
+        strcpy(dst->fg_color, src->fg_color);
+        strcpy(dst->bg_color, src->bg_color);
+    }
+
+    ADDAPI void ADDCALL ime_b_fill_rect(CellBuffer *buf, Cell *cell,
+                                        size_t lu_x, size_t lu_y,
+                                        size_t rb_x, size_t rb_y)
+    {
+        size_t width = rb_x - lu_x;
+        size_t height = rb_y - lu_y;
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                size_t curr_x = lu_x + x;
+                size_t curr_y = lu_y + y;
+                ime_copy_cell(buf->cells[curr_x * buf->rows + curr_y], cell);
+            }
+        }
+    }
+
+    ADDAPI void ADDCALL ime_draw_frame(CellBuffer *buf,
+                                       size_t lu_x, size_t lu_y,
+                                       size_t rb_x, size_t rb_y)
+    {
+        char vertical = 0xB3;
+        char horizontal = 0xC4;
+        char left_up = 0xDA;
+        char left_down = 0xC0;
+        char right_down = 0xD9;
+        char right_up = 0xBF;
+        size_t width = rb_x - lu_x;
+        size_t height = rb_y - lu_y;
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                size_t curr_x = lu_x + x;
+                size_t curr_y = lu_y + y;
+                if (x == 0 && y == 0)
+                {
+                    buf->cells[curr_x * buf->rows + curr_y]->symbol = left_up;
+                }
+                else if (x == 0 && y == height - 1)
+                {
+                    buf->cells[curr_x * buf->rows + curr_y]->symbol = left_down;
+                }
+                else if (x == width - 1 && y == 0)
+                {
+                    buf->cells[curr_x * buf->rows + curr_y]->symbol = right_up;
+                }
+                else if (x == width - 1 && y == height - 1)
+                {
+                    buf->cells[curr_x * buf->rows + curr_y]->symbol = right_down;
+                }
+                else if (x == 0 || x == width - 1)
+                {
+                    buf->cells[curr_x * buf->rows + curr_y]->symbol = vertical;
+                }
+                else if (y == 0 || y == height - 1)
+                {
+                    buf->cells[curr_x * buf->rows + curr_y]->symbol = horizontal;
+                }
+            }
+        }
+    }
+
+    ADDAPI void ADDCALL ime_draw_frame_double(CellBuffer *buf,
+                                              size_t lu_x, size_t lu_y,
+                                              size_t rb_x, size_t rb_y)
+    {
+        char vertical = 0xBA;
+        char horizontal = 0xCD;
+        char left_up = 0xC9;
+        char left_down = 0xC8;
+        char right_down = 0xBC;
+        char right_up = 0xBB;
+        size_t width = rb_x - lu_x;
+        size_t height = rb_y - lu_y;
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                size_t curr_x = lu_x + x;
+                size_t curr_y = lu_y + y;
+                if (x == 0 && y == 0)
+                {
+                    buf->cells[curr_x * buf->rows + curr_y]->symbol = left_up;
+                }
+                else if (x == 0 && y == height - 1)
+                {
+                    buf->cells[curr_x * buf->rows + curr_y]->symbol = left_down;
+                }
+                else if (x == width - 1 && y == 0)
+                {
+                    buf->cells[curr_x * buf->rows + curr_y]->symbol = right_up;
+                }
+                else if (x == width - 1 && y == height - 1)
+                {
+                    buf->cells[curr_x * buf->rows + curr_y]->symbol = right_down;
+                }
+                else if (x == 0 || x == width - 1)
+                {
+                    buf->cells[curr_x * buf->rows + curr_y]->symbol = vertical;
+                }
+                else if (y == 0 || y == height - 1)
+                {
+                    buf->cells[curr_x * buf->rows + curr_y]->symbol = horizontal;
+                }
+            }
+        }
+    }
+
+    ADDAPI void ADDCALL
+    ime_bell()
+    {
+        printf("\a");
     }
 
 #endif // IMECLUI_IMPLEMENTATION
