@@ -78,12 +78,14 @@ int main()
                                      IME_STYLE_BLINK);
     ime_fill_rect(rect_cell, 70, 5, 100, 13);
 
+    /* Drawing frames */
     buf = ime_alloc_cells(cols, rows);
 
     ime_b_fill_rect(buf, rect_cell, 5, 5, 30, 10);
 
     ime_draw_frame(buf, 5, 5, 30, 10);
     ime_draw_frame_double(buf, 7, 7, 38, 18);
+    ime_draw_frame_double(buf, 0, 0, cols, rows);
 
     ime_place_buffer(buf);
 
