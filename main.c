@@ -81,12 +81,13 @@ int main()
     /* Drawing frames */
     buf = ime_alloc_cells(cols, rows);
 
-    ime_b_fill_rect(buf, rect_cell, 5, 5, 30, 10);
+    ime_b_fill_rect(buf, rect_cell, 20, 4, 40, 10);
 
     ime_draw_frame(buf, 5, 5, 30, 10);
     ime_draw_frame_double(buf, 7, 7, 38, 18);
     ime_draw_frame_double(buf, 0, 0, cols, rows);
 
+    /* Drawing lines */
     ime_draw_line(buf, 11, 11, 11, 15);
     ime_draw_line(buf, 15, 12, 50, 12);
 
