@@ -222,10 +222,10 @@ extern "C"
         GetConsoleMode(hStdin, &mode);
         SetConsoleMode(hStdin, mode & (~ENABLE_ECHO_INPUT));
 #else  // _WIN32
-        struct termios term;
-        tcgetattr(0, &term);
-        term.c_lflag &= ~ECHO;
-        tcsetattr(0, TCSANOW, &term);
+       // struct termios term;
+       // tcgetattr(0, &term);
+       // term.c_lflag &= ~ECHO;
+       // tcsetattr(0, TCSANOW, &term);
 #endif // _WIN32
     }
 
@@ -237,10 +237,10 @@ extern "C"
         GetConsoleMode(hStdin, &mode);
         SetConsoleMode(hStdin, mode | ENABLE_ECHO_INPUT);
 #else  // _WIN32
-        struct termios term;
-        tcgetattr(0, &term);
-        term.c_lflag |= ECHO;
-        tcsetattr(0, TCSANOW, &term);
+       // struct termios term;
+       // tcgetattr(0, &term);
+       // term.c_lflag |= ECHO;
+       // tcsetattr(0, TCSANOW, &term);
 #endif // _WIN32
     }
 
