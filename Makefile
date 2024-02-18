@@ -39,13 +39,17 @@ lib: $(LIB_NAME).h
 	$(CC) -o $(DYN_LIB_TARGET) -s -shared $(LIB_NAME).o
 	$(RM) $(LIB_NAME).o 
 # Static lib:	
-	$(CC) $(CFLAGS) -o $(LIB_NAME).o $(LIB_NAME).c -D IMECLUI_IMPLEMENTATION $(SYS)
+	$(CC) $(CFLAGS) -o $(LIB_NAME).o $(LIB_NAME).c -D ADD_EXPORTS -D IMECLUI_IMPLEMENTATION $(SYS)
 	ar rcs $(STT_LIB_TARGET) $(LIB_NAME).o
 # Cleanup:
 	$(RM) $(LIB_NAME).o $(LIB_NAME).c
 
 main: main.c
 	$(CC) -I . -c main.c
-	$(CC) -o main.exe -L. main.o -l$(LIB_NAME)
-# Cleanup:
+	$(CC) -o main.exe main.o -L. -l$(LIB_NAME)
+	$(RM) main.o
+
+main_static: main.c
+	$(CC) -I . -c main.c -D ADD_EXPORTS -D IMECLUI_IMPLEMENTATION $(SYS)
+	$(CC) -o main.exe main.o
 	$(RM) main.o

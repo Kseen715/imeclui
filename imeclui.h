@@ -186,6 +186,9 @@ extern "C"
     ADDAPI void ADDCALL ime_draw_frame_double(CellBuffer *buf,
                                               size_t lu_x, size_t lu_y,
                                               size_t rb_x, size_t rb_y);
+    ADDAPI void ADDCALL ime_draw_line(CellBuffer *buf,
+                                      size_t lu_x, size_t lu_y,
+                                      size_t rb_x, size_t rb_y);
     ADDAPI void ADDCALL ime_bell();
 
 #ifdef IMECLUI_IMPLEMENTATION
@@ -603,10 +606,34 @@ extern "C"
         }
     }
 
-    ADDAPI void ADDCALL
-    ime_bell()
+    ADDAPI void ADDCALL ime_bell()
     {
         printf("\a");
+    }
+
+    ADDAPI void ADDCALL ime_draw_line(CellBuffer *buf,
+                                      size_t lu_x, size_t lu_y,
+                                      size_t rb_x, size_t rb_y)
+    {
+        if (lu_x == rb_x)
+        {
+            for (int i = lu_y; i < rb_y; i++)
+            {
+                buf->cells[lu_x * buf->rows + i]->symbol = 0xB3;
+            }
+        }
+        else if (lu_y == rb_y)
+        {
+            for (int i = lu_x; i < rb_x; i++)
+            {
+                buf->cells[i * buf->rows + lu_y]->symbol = 0xC4;
+            }
+        }
+        else
+        {
+            ime_bell();
+            sleep(1);
+        }
     }
 
 #endif // IMECLUI_IMPLEMENTATION

@@ -87,6 +87,9 @@ int main()
     ime_draw_frame_double(buf, 7, 7, 38, 18);
     ime_draw_frame_double(buf, 0, 0, cols, rows);
 
+    ime_draw_line(buf, 11, 11, 11, 15);
+    ime_draw_line(buf, 15, 12, 50, 12);
+
     ime_place_buffer(buf);
 
     getchar();
