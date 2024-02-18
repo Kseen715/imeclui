@@ -29,6 +29,7 @@ extern "C"
 #include <windows.h>
 #else // _WIN32
 #include <sys/ioctl.h>
+#include <termios.h>
 #endif // _WIN32
 
 #define IME_ESC "\x1B["
