@@ -2,7 +2,7 @@
 CC = gcc
 
 # C flags
-CFLAGS = -c -Wall
+CFLAGS = -c -Wall -fPIC
 
 LIB_NAME = imeclui
 LIB_SOURCE = imeclui.h
