@@ -153,8 +153,8 @@ extern "C"
     ADDAPI void ADDCALL ime_fill_rect(Cell *cell, size_t lu_x, size_t lu_y,
                                       size_t rb_x, size_t rb_y);
 
-    ADDAPI Cell ADDCALL *ime_alloc_cell(char symbol, char *fg_color,
-                                        char *bg_color, short style);
+    ADDAPI Cell ADDCALL *ime_alloc_cell(char symbol, const char *fg_color,
+                                        const char *bg_color, short style);
     ADDAPI void ADDCALL ime_free_cell(Cell *cell);
     ADDAPI void ADDCALL __ime_log_cell(Cell *cell);
 
@@ -247,7 +247,7 @@ extern "C"
 #endif // _WIN32
     }
 
-    ADDAPI Cell ADDCALL *ime_alloc_cell(char symbol, char *fg_color, char *bg_color, short style)
+    ADDAPI Cell ADDCALL *ime_alloc_cell(char symbol, const char *fg_color, const char *bg_color, short style)
     {
         Cell *cell = (Cell *)malloc(sizeof(Cell));
         cell->fg_color = (char *)malloc(__IME_COLOR_STR_BUFFER_SIZE);
@@ -269,7 +269,7 @@ extern "C"
     ADDAPI char ADDCALL *__ime_get_escape_string(char *str)
     {
         // if any non-ascii character is found, replace it with hex escape sequence
-        char *buf = malloc(__IME_STYLE_STR_BUFFER_SIZE);
+        char *buf = (char *)malloc(__IME_STYLE_STR_BUFFER_SIZE);
         for (int i = 0; i < __IME_STYLE_STR_BUFFER_SIZE; i++)
         {
             buf[i] = '\0';
@@ -313,7 +313,7 @@ extern "C"
     {
         // TODO: use a buffer instead of malloc
         // TODO: or count precizely max length of the string
-        char *style = malloc(__IME_STYLE_STR_BUFFER_SIZE);
+        char *style = (char *)malloc(__IME_STYLE_STR_BUFFER_SIZE);
         for (int i = 0; i < __IME_STYLE_STR_BUFFER_SIZE; i++)
             style[i] = '\0';
         strcat(style, IME_ESC ";");
@@ -385,7 +385,7 @@ extern "C"
 
     ADDAPI CellBuffer ADDCALL *ime_alloc_cells(int cols, int rows)
     {
-        CellBuffer *buffer = malloc(sizeof(CellBuffer));
+        CellBuffer *buffer = (CellBuffer *)malloc(sizeof(CellBuffer));
         buffer->cells = (Cell **)malloc(cols * rows * sizeof(Cell));
         buffer->cols = cols;
         buffer->rows = rows;
@@ -411,7 +411,7 @@ extern "C"
     {
         int cols, rows;
         ime_get_tsize(&cols, &rows);
-        char *buffer = malloc(cols * rows + 1);
+        char *buffer = (char *)malloc(cols * rows + 1);
         for (int i = 0; i < rows; i++)
         {
             for (int j = 0; j < cols; j++)
@@ -440,9 +440,9 @@ extern "C"
         ime_move_cursor(lu_x, lu_y);
         size_t width = rb_x - lu_x;
         size_t height = rb_y - lu_y;
-        for (int y = 0; y < height; y++)
+        for (unsigned y = 0; y < height; y++)
         {
-            for (int x = 0; x < width; x++)
+            for (unsigned x = 0; x < width; x++)
             {
                 size_t curr_x = lu_x + x;
                 size_t curr_y = lu_y + y;
@@ -464,7 +464,7 @@ extern "C"
 
     ADDAPI void ADDCALL ime_place_buffer(CellBuffer *buf)
     {
-        char *screen = calloc(buf->size * 64, 1);
+        char *screen = (char *)calloc(buf->size * 64, 1);
         size_t printed = 0;
         size_t t;
         for (int i = 0; i < buf->rows; i++)
@@ -503,9 +503,9 @@ extern "C"
     {
         size_t width = rb_x - lu_x;
         size_t height = rb_y - lu_y;
-        for (int y = 0; y < height; y++)
+        for (unsigned y = 0; y < height; y++)
         {
-            for (int x = 0; x < width; x++)
+            for (unsigned x = 0; x < width; x++)
             {
                 size_t curr_x = lu_x + x;
                 size_t curr_y = lu_y + y;
@@ -526,9 +526,9 @@ extern "C"
         char right_up = 0xBF;
         size_t width = rb_x - lu_x;
         size_t height = rb_y - lu_y;
-        for (int y = 0; y < height; y++)
+        for (unsigned y = 0; y < height; y++)
         {
-            for (int x = 0; x < width; x++)
+            for (unsigned x = 0; x < width; x++)
             {
                 size_t curr_x = lu_x + x;
                 size_t curr_y = lu_y + y;
@@ -572,9 +572,9 @@ extern "C"
         char right_up = 0xBB;
         size_t width = rb_x - lu_x;
         size_t height = rb_y - lu_y;
-        for (int y = 0; y < height; y++)
+        for (unsigned y = 0; y < height; y++)
         {
-            for (int x = 0; x < width; x++)
+            for (unsigned x = 0; x < width; x++)
             {
                 size_t curr_x = lu_x + x;
                 size_t curr_y = lu_y + y;
@@ -617,14 +617,14 @@ extern "C"
     {
         if (lu_x == rb_x)
         {
-            for (int i = lu_y; i < rb_y; i++)
+            for (unsigned i = lu_y; i < rb_y; i++)
             {
                 buf->cells[lu_x * buf->rows + i]->symbol = 0xB3;
             }
         }
         else if (lu_y == rb_y)
         {
-            for (int i = lu_x; i < rb_x; i++)
+            for (unsigned i = lu_x; i < rb_x; i++)
             {
                 buf->cells[i * buf->rows + lu_y]->symbol = 0xC4;
             }

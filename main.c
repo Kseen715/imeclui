@@ -92,6 +92,7 @@ int main()
     ime_draw_line(buf, 15, 12, 50, 12);
 
     ime_place_buffer(buf);
+    ime_free_cells(buf);
 
     getchar();
     ime_exit_alt_screen();
